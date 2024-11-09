@@ -137,7 +137,7 @@ def plot_graph():
 
 # Define main app with calculator display
 def main():
-    st.title("Student-Assisting AI App")
+    st.title("Stdy Buddy AI App")
     st.write("Powered by Groq AI and Streamlit")
 
     # Sidebar for navigation
