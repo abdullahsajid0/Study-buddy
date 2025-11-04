@@ -19,15 +19,7 @@ if not api_key:
     st.error("API key not found. Please set the GROQ_API_KEY environment variable.")
 client = Groq(api_key=api_key)
 
-# Define the layout of the calculator buttons
-calculator_buttons = [
-    ["7", "8", "9", "/"],
-    ["4", "5", "6", "*"],
-    ["1", "2", "3", "-"],
-    ["0", ".", "=", "+"],
-    ["Clear", "M+", "MR", "M-"],
-    ["graph", "solve"]
-]
+
 
 # Define a helper function to interact with Groq API
 def ask_groq(prompt):
@@ -43,16 +35,6 @@ def ask_groq(prompt):
 
 # Define the calculator display and button functionalities
 def display_calculator():
-    st.write("### Scientific Calculator")
-    st.text_input("Expression", value=st.session_state["calculator_input"], disabled=True, key="expression_display")
-    for row in calculator_buttons:
-        cols = st.columns(len(row))
-        for i, button in enumerate(row):
-            if cols[i].button(button):
-                handle_calculator_button(button)
-    if st.session_state["calculator_result"]:
-        st.write("### Result:")
-        st.write(st.session_state["calculator_result"])
 
     # --- Added Desmos Calculator below your existing custom calculator ---
     st.write("---")
