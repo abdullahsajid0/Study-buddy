@@ -24,7 +24,7 @@ def ask_groq(prompt):
     try:
         response = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
-            model="llama3-8b-8192",
+            model="openai/gpt-oss-120b",
         )
         return response.choices[0].message.content
     except Exception as e:
