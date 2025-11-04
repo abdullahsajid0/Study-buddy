@@ -19,6 +19,16 @@ if not api_key:
     st.error("API key not found. Please set the GROQ_API_KEY environment variable.")
 client = Groq(api_key=api_key)
 
+# Define the layout of the calculator buttons
+calculator_buttons = [
+    ["7", "8", "9", "/"],
+    ["4", "5", "6", "*"],
+    ["1", "2", "3", "-"],
+    ["0", ".", "=", "+"],
+    ["Clear", "M+", "MR", "M-"],
+    ["graph", "solve"]
+]
+
 # Define a helper function to interact with Groq API
 def ask_groq(prompt):
     try:
@@ -137,6 +147,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
