@@ -5,18 +5,31 @@ import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
 
-# ===============================
-# Setup Groq API Client
-# ===============================
+# Initialize Streamlit session state for calculator input
+if "calculator_input" not in st.session_state:
+    st.session_state["calculator_input"] = ""
+if "calculator_result" not in st.session_state:
+    st.session_state["calculator_result"] = ""
+if "memory_value" not in st.session_state:
+    st.session_state["memory_value"] = None
+
+# Access the secret API key
 api_key = os.getenv("GROQ_API_KEY")
 if not api_key:
     st.error("API key not found. Please set the GROQ_API_KEY environment variable.")
-else:
-    client = Groq(api_key=api_key)
+client = Groq(api_key=api_key)
 
-# ===============================
-# Helper: Ask Groq
-# ===============================
+# Define the layout of the calculator buttons
+calculator_buttons = [
+    ["7", "8", "9", "/"],
+    ["4", "5", "6", "*"],
+    ["1", "2", "3", "-"],
+    ["0", ".", "=", "+"],
+    ["Clear", "M+", "MR", "M-"],
+    ["graph", "solve"]
+]
+
+# Define a helper function to interact with Groq API
 def ask_groq(prompt):
     try:
         response = client.chat.completions.create(
@@ -28,43 +41,27 @@ def ask_groq(prompt):
         st.error(f"Error: {e}")
         return None
 
-# ===============================
-# Graph Plotter (local sympy)
-# ===============================
-def plot_graph(expression):
-    if "x" not in expression:
-        st.warning("To plot, your expression must include 'x'.")
-        return
+# Define the calculator display and button functionalities
+def display_calculator():
+    st.write("### Scientific Calculator")
+    st.text_input("Expression", value=st.session_state["calculator_input"], disabled=True, key="expression_display")
+    for row in calculator_buttons:
+        cols = st.columns(len(row))
+        for i, button in enumerate(row):
+            if cols[i].button(button):
+                handle_calculator_button(button)
+    if st.session_state["calculator_result"]:
+        st.write("### Result:")
+        st.write(st.session_state["calculator_result"])
 
-    try:
-        x = sp.symbols("x")
-        expr = sp.sympify(expression)
-        func = sp.lambdify(x, expr, "numpy")
-
-        x_vals = np.linspace(-10, 10, 400)
-        y_vals = func(x_vals)
-
-        plt.figure(figsize=(8, 4))
-        plt.plot(x_vals, y_vals, label=str(expr))
-        plt.xlabel("x")
-        plt.ylabel("f(x)")
-        plt.title("Graph of the Function")
-        plt.legend()
-        plt.grid(True)
-        st.pyplot(plt)
-    except Exception as e:
-        st.error(f"Error plotting graph: {e}")
-
-# ===============================
-# Desmos Embedded Calculator
-# ===============================
-def desmos_calculator():
+    # --- Added Desmos Calculator below your existing custom calculator ---
+    st.write("---")
     st.subheader("🧮 Free Desmos Calculator")
-
     calc_type = st.radio(
         "Choose calculator type:",
         ["Scientific Calculator", "Graphing Calculator"],
-        horizontal=True
+        horizontal=True,
+        key="desmos_choice"
     )
 
     if calc_type == "Scientific Calculator":
@@ -72,106 +69,99 @@ def desmos_calculator():
     else:
         st.components.v1.iframe("https://www.desmos.com/calculator", height=600)
 
-    st.info("Desmos calculators are completely free for educational and personal use.")
+    st.caption("Desmos calculators are free for educational and personal use.")
+    # --- End of Desmos addition ---
 
-# ===============================
-# Main App
-# ===============================
+# Button handling logic
+def handle_calculator_button(button):
+    if button == "Clear":
+        st.session_state["calculator_input"] = ""
+        st.session_state["calculator_result"] = ""
+    elif button == "=":
+        solve_expression_with_model()
+    elif button == "graph":
+        plot_graph()
+    elif button == "solve":
+        solve_expression_with_model()
+    elif button == "M+":
+        st.session_state["memory_value"] = st.session_state["calculator_input"]
+    elif button == "M-":
+        st.session_state["memory_value"] = None
+    elif button == "MR":
+        if st.session_state["memory_value"]:
+            st.session_state["calculator_input"] += st.session_state["memory_value"]
+    else:
+        st.session_state["calculator_input"] += button
+
+# Use Groq model to solve the math problem
+def solve_expression_with_model():
+    prompt = f"Solve this mathematical expression: {st.session_state['calculator_input']}"
+    result = ask_groq(prompt)
+    st.session_state["calculator_result"] = result if result else "Error solving expression."
+
+# Function to plot the graph if "x" is present in expression
+def plot_graph():
+    if "x" in st.session_state["calculator_input"]:
+        try:
+            x = sp.symbols("x")
+            expr = sp.sympify(st.session_state["calculator_input"])
+            func = sp.lambdify(x, expr, "numpy")
+            x_vals = np.linspace(-10, 10, 400)
+            y_vals = func(x_vals)
+
+            plt.figure(figsize=(8, 4))
+            plt.plot(x_vals, y_vals, label=str(expr))
+            plt.xlabel("x")
+            plt.ylabel("f(x)")
+            plt.title("Graph of the Function")
+            plt.legend()
+            plt.grid(True)
+            st.pyplot(plt)
+        except Exception as e:
+            st.error("Could not plot graph. Please enter a valid expression.")
+    else:
+        st.error("Graphing requires 'x' in the expression.")
+
+# Define main app with calculator display
 def main():
-    st.title("📚 Study Buddy AI App")
-    st.write("Powered by **Groq AI** and **Streamlit**")
+    st.title("Study Buddy AI App")
+    st.write("Powered by Groq AI and Streamlit")
 
-    st.sidebar.title("🧭 Navigation")
+    st.sidebar.title("Choose a Feature")
     feature = st.sidebar.radio(
-        "Choose a Feature",
-        [
-            "Concept Explanation",
-            "Personalized Study Plan",
-            "AI Scientific Assistant",
-            "Desmos Calculator",
-            "Study Tips & Time Management"
-        ]
+        "Go to",
+        ["Concept Explanation", "Personalized Study Plan", "Scientific Calculator", "Study Tips & Time Management"]
     )
 
-    # -------------------------------
-    # Concept Explanation
-    # -------------------------------
     if feature == "Concept Explanation":
-        st.header("🧠 Explain a Concept")
+        st.header("Explain a Concept")
         concept = st.text_input("Enter a concept you'd like explained")
-
         if st.button("Explain") and concept:
-            prompt = f"Explain the concept of {concept} in simple, student-friendly terms."
+            prompt = f"Explain the concept of {concept} in simple terms."
             explanation = ask_groq(prompt)
-            if explanation:
-                st.success(explanation)
-            else:
-                st.error("Error fetching explanation.")
+            st.write("*Explanation:*", explanation if explanation else "Error fetching explanation.")
 
-    # -------------------------------
-    # Personalized Study Plan
-    # -------------------------------
     elif feature == "Personalized Study Plan":
-        st.header("📅 Generate a Study Plan")
-
+        st.header("Generate a Study Plan")
         subject = st.text_input("Enter the subject")
         topic = st.text_input("Enter the topic")
-        duration = st.number_input("Enter study duration (in hours)", min_value=1)
+        duration = st.number_input("Enter study duration in hours", min_value=1)
         purpose = st.selectbox("Purpose", ["Exam Preparation", "Test Preparation"])
+        
+        if st.button("Generate Plan") and subject and topic and duration:
+            prompt = f"Create a study plan for {duration} hours on {topic} in {subject} for {purpose.lower()}."
+            study_plan = ask_groq(prompt)
+            st.write("*Study Plan:*", study_plan if study_plan else "Error generating study plan.")
 
-        if st.button("Generate Plan") and subject and topic:
-            prompt = f"Create a {duration}-hour study plan for {topic} in {subject} for {purpose.lower()}."
-            plan = ask_groq(prompt)
-            if plan:
-                st.success(plan)
-            else:
-                st.error("Error generating study plan.")
+    elif feature == "Scientific Calculator":
+        display_calculator()
 
-    # -------------------------------
-    # AI Scientific Assistant (local math + AI fallback)
-    # -------------------------------
-    elif feature == "AI Scientific Assistant":
-        st.header("🔢 AI Scientific Assistant")
-
-        expression = st.text_input("Enter a math expression (you can use x for graphing):")
-
-        col1, col2, col3 = st.columns(3)
-        if col1.button("Calculate"):
-            try:
-                result = sp.sympify(expression).evalf()
-                st.success(f"Result: {result}")
-            except Exception:
-                st.warning("Could not compute locally, asking AI...")
-                ai_result = ask_groq(f"Solve this mathematical expression: {expression}")
-                if ai_result:
-                    st.info(ai_result)
-                else:
-                    st.error("Unable to solve expression.")
-        if col2.button("Graph"):
-            plot_graph(expression)
-        if col3.button("Clear"):
-            st.experimental_rerun()
-
-    # -------------------------------
-    # Desmos Embedded Calculator
-    # -------------------------------
-    elif feature == "Desmos Calculator":
-        desmos_calculator()
-
-    # -------------------------------
-    # Study Tips
-    # -------------------------------
     elif feature == "Study Tips & Time Management":
-        st.header("💡 Study Tips & Time Management")
-        if st.button("Get a Tip"):
-            tip = ask_groq("Provide one effective study tip for students.")
-            if tip:
-                st.success(tip)
-            else:
-                st.error("Error fetching study tip.")
+        st.header("Get a Study Tip")
+        if st.button("Get Tip"):
+            prompt = "Provide one study tip for students."
+            tip = ask_groq(prompt)
+            st.write("*Study Tip:*", tip if tip else "Error fetching tip.")
 
-# ===============================
-# Run the App
-# ===============================
 if __name__ == "__main__":
     main()
